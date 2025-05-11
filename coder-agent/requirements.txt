@@ -1,4 +1,5 @@
 gradio
 langchain 
-langchain-google-vertexai 
+langchain_google_genai
 google-cloud-aiplatform
+langchain_openai
