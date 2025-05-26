@@ -1,5 +1,13 @@
 # config.py
+import json
+
 GOOGLE_AI_MODEL_NAME = "gemini-2.5-pro-preview-05-06"
+
+AVAILABLE_MODELS = [
+    "gemini-2.5-pro-preview-05-06", # Default
+    "gemini-1.5-pro-latest",
+    "gemini-1.0-pro", # Older, but widely available
+]
 
 CHATBOT_SYSTEM_PROMPT = """
 You are a coding chatbot. The code that you generate should follow the following rules:
@@ -11,3 +19,15 @@ The explanation code outside of the generated code should be in markdown format 
 1. Explanations should be very short and concise.
 2. Don't explain all the changes. Only explain the changes that are not obvious.
 """
+
+DEV_PORT = 7860
+STABLE_PORT = 7060
+
+def read_configs(config_file_path: str):
+    configs = None
+    f = None
+    if isinstance(config_file_path, str) and config_file_path:
+        f = open(config_file_path)
+        configs = json.load(f)
+        f.close()
+    return configs

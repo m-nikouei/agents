@@ -8,6 +8,7 @@ from llm_backend import (
     get_initialization_status
 )
 from utils import read_configs
+from config import STABLE_PORT, DEV_PORT
 
 def launch_ui(model_name_to_display: str):
     initialized, status_message = get_initialization_status()
@@ -79,7 +80,7 @@ def launch_ui(model_name_to_display: str):
         )
 
     print("Launching Gradio Chat Interface with Blocks...")
-    demo.launch(server_name="0.0.0.0")
+    demo.launch(server_name="0.0.0.0",server_port=STABLE_PORT)
 
 if __name__ == "__main__":
     loaded_api_key = None

@@ -11,3 +11,6 @@ The explanation code outside of the generated code should be in markdown format 
 1. Explanations should be very short and concise.
 2. Don't explain all the changes. Only explain the changes that are not obvious.
 """
+
+DEV_PORT = 7860
+STABLE_PORT = 7060

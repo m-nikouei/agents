@@ -6,6 +6,7 @@ The first version is generated using gemini.google.com and is a simple chatbot w
 
 # To Implement:
 * Streaming the chatbot
+* Adding the option to switch between different google models as well as openai or other providers.
 * Reading files in the directory and creating summaries for files, function and code objects.
 * Logging all chat interactions for the current project. Putting all logs and summaries into a dev folder.
 * Capabilities to version control the dev using github.
