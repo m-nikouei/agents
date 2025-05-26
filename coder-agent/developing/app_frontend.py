@@ -32,8 +32,8 @@ def launch_ui(initial_model_name: str):
     .gradio-container {
         padding-left: 10% !important;
         padding-right: 10% !important;
-        padding-top: 1em !important;
-        padding-bottom: 1em !important;
+        padding-top: 0.5em !important; /* Reduced */
+        padding-bottom: 0.5em !important; /* Reduced */
         box-sizing: border-box !important;
         height: 100% !important; 
         display: flex !important;
@@ -45,9 +45,8 @@ def launch_ui(initial_model_name: str):
         min-height: 0; 
     }
     #settings_panel_col {
-        /* Removed 'display: flex;' to allow Gradio to control visibility */
-        /* It will stretch height due to align-items: stretch on parent row if row has height */
-        min-height: 0; /* Still good for flex items to allow shrinking */
+        min-height: 0;
+        overflow-y: auto; /* Allow settings panel to scroll if content exceeds height */
     }
     #chat_area_col {
         display: flex;
@@ -58,27 +57,47 @@ def launch_ui(initial_model_name: str):
         flex-grow: 1; 
         display: flex;
         flex-direction: column;
-        min-height: 200px; 
+        min-height: 150px; /* Reduced min-height slightly */
     }
     #chatbot_wrapper_col > div[data-testid="chatbot"] {
         flex-grow: 1; 
     }
     footer {visibility: hidden; display: none !important;}
-    #main-title {padding-top: 0.5em; padding-bottom: 0.5em;}
+    
+    /* Reduce default margins for p tags, often from gr.Markdown */
+    .prose p { 
+        margin-top: 0.25em !important;
+        margin-bottom: 0.25em !important;
+    }
+    /* Specific adjustments for title and description */
+    #main-title p { /* Targets p inside the main title markdown */
+        margin-top: 0.2em !important; 
+        margin-bottom: 0.2em !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+     #description-markdown p {
+        margin-top: 0.1em !important;
+        margin-bottom: 0.1em !important;
+        font-size: 0.9em; /* Optional: slightly smaller desc text */
+    }
+    /* Reduce padding/margin for settings panel sections if needed */
+    #settings_panel_col .prose h3 { /* Target H3 in settings */
+        margin-top: 0.5em !important;
+        margin-bottom: 0.2em !important;
+    }
     """
 
     with gr.Blocks(theme="soft", fill_height=True, css=custom_css) as demo:
         current_model_gr_state = gr.State(current_display_model_name)
-        settings_panel_visible_state = gr.State(False) # State to track visibility
+        settings_panel_visible_state = gr.State(False)
 
-        # Main layout row: Settings Panel (Left) and Chat Area (Right)
         with gr.Row(equal_height=True, elem_id="main_layout_row"): 
-            # Settings Panel (Sidebar)
             with gr.Column(scale=1, min_width=280, visible=False, elem_id="settings_panel_col") as settings_panel:
                 gr.Markdown("## Settings")
                 
                 gr.Markdown("### Model Selection")
-                settings_panel_status_md = gr.Markdown("") # For feedback during model change
+                settings_panel_status_md = gr.Markdown("")
                 model_selector_radio = gr.Radio(
                     choices=AVAILABLE_MODELS,
                     value=current_display_model_name,
@@ -88,7 +107,7 @@ def launch_ui(initial_model_name: str):
                 gr.Markdown("### Theme")
                 gr.Markdown("_(Theme selection may require app reload if changed via URL parameters or Gradio's native settings if footer is enabled)_")
                 
-                gr.Markdown("---") # Separator
+                gr.Markdown("---")
                 gr.Markdown("### Links")
                 gr.Markdown("<div style='margin-bottom: 5px;'><a href='#' target='_blank' style='text-decoration: none; color: #007bff;'>Use via API</a></div>")
                 gr.Markdown("<div style='margin-bottom: 5px;'><a href='https://gradio.app' target='_blank' style='text-decoration: none; color: #007bff;'>Built with Gradio</a></div>")
@@ -96,25 +115,25 @@ def launch_ui(initial_model_name: str):
                 gr.Markdown("---")
                 close_settings_button = gr.Button("Close Settings")
 
-            # Chat Area (Main Content)
             with gr.Column(scale=4, elem_id="chat_area_col"): 
-                with gr.Row(equal_height=False): # Top bar for hamburger and title
+                with gr.Row(equal_height=False): 
                     with gr.Column(scale=0, min_width=50): 
                         hamburger_button = gr.Button("☰", variant="secondary", size="sm")
                     with gr.Column(scale=9): 
                         title_markdown = gr.Markdown(f"# Google AI Chatbot ({current_display_model_name})", elem_id="main-title")
                 
                 description_markdown = gr.Markdown(
-                    generate_description_markdown_text(current_display_model_name, initial_is_initialized, initial_status_msg)
+                    generate_description_markdown_text(current_display_model_name, initial_is_initialized, initial_status_msg),
+                    elem_id="description-markdown"
                 )
                 
-                with gr.Column(elem_id="chatbot_wrapper_col"): # Wrapper to make chatbot expand
+                with gr.Column(elem_id="chatbot_wrapper_col"): 
                     chatbot_component = gr.Chatbot(
                         type="messages",
                         show_label=False
                     )
                 
-                with gr.Row(equal_height=False): # Input row at the bottom of chat area
+                with gr.Row(equal_height=False): 
                     with gr.Column(scale=8):
                         textbox_component = gr.Textbox(
                             placeholder="Ask me anything...",
@@ -166,7 +185,7 @@ def launch_ui(initial_model_name: str):
                 updated_radio_val = model_name_b
                 return model_name_b, new_title, new_desc, feedback_msg, gr.update(value=updated_radio_val)
 
-            success, msg, actual_model_name = change_model_and_reinitialize(selected_new_model)
+            success, msg, actual_model_name = change_model_and_reinitialize(selected_new__model)
             new_title_str = f"# Google AI Chatbot ({actual_model_name})"
             is_overall_init, overall_status_msg, _ = get_initialization_status()
             new_desc_str = generate_description_markdown_text(actual_model_name, is_overall_init, overall_status_msg)
@@ -187,22 +206,21 @@ def launch_ui(initial_model_name: str):
             new_visibility = not current_visibility_state_value
             radio_update_val = gr.update() 
             status_text_update = ""
-            if new_visibility: # Panel is being opened
+            if new_visibility: 
                 _, _, current_backend_model = get_initialization_status()
                 radio_update_val = gr.update(value=current_backend_model)
                 status_text_update = "Select model or close settings."
-            # Returns: new state value, component update for panel, component update for radio, component update for status md
             return new_visibility, gr.update(visible=new_visibility), radio_update_val, status_text_update
 
         hamburger_button.click(
             fn=toggle_settings_panel,
-            inputs=[settings_panel_visible_state], # Pass the current state value
+            inputs=[settings_panel_visible_state], 
             outputs=[settings_panel_visible_state, settings_panel, model_selector_radio, settings_panel_status_md]
         )
         
         close_settings_button.click(
-            lambda: (False, gr.update(visible=False), gr.update(), ""), # state_val, panel_update, radio_update, status_update
-            inputs=None, # No dynamic inputs needed for this lambda
+            lambda: (False, gr.update(visible=False), gr.update(), ""), 
+            inputs=None, 
             outputs=[settings_panel_visible_state, settings_panel, model_selector_radio, settings_panel_status_md]
         )
 
