@@ -116,24 +116,25 @@ def launch_ui(initial_model_name: str):
                 close_settings_button = gr.Button("Close Settings")
 
             with gr.Column(scale=4, elem_id="chat_area_col"): 
-                with gr.Row(equal_height=False): 
+                with gr.Row(equal_height=False,height="2%"): 
                     with gr.Column(scale=0, min_width=50): 
                         hamburger_button = gr.Button("☰", variant="secondary", size="sm")
                     with gr.Column(scale=9): 
                         title_markdown = gr.Markdown(f"# Google AI Chatbot ({current_display_model_name})", elem_id="main-title")
                 
-                description_markdown = gr.Markdown(
-                    generate_description_markdown_text(current_display_model_name, initial_is_initialized, initial_status_msg),
-                    elem_id="description-markdown"
-                )
+                with gr.Row(height="1%"):
+                    description_markdown = gr.Markdown(
+                        generate_description_markdown_text(current_display_model_name, initial_is_initialized, initial_status_msg),
+                        elem_id="description-markdown"
+                    )
                 
-                with gr.Column(elem_id="chatbot_wrapper_col"): 
+                with gr.Row(elem_id="chatbot_wrapper_col",height="85%"): 
                     chatbot_component = gr.Chatbot(
                         type="messages",
                         show_label=False
                     )
                 
-                with gr.Row(equal_height=False): 
+                with gr.Row(equal_height=False,height="3%"): 
                     with gr.Column(scale=8):
                         textbox_component = gr.Textbox(
                             placeholder="Ask me anything...",
