@@ -52,13 +52,12 @@ def launch_ui(initial_model_name: str):
     #chat_area_col {
         display: flex !important;
         flex-direction: column !important;
-        flex-grow: 1; /* Takes up space in its parent flex row */
-        height: 100%; /* Fills height allocated by main_layout_row */
+        flex-grow: 1; 
+        height: 100%; 
         min-height: 0;
         overflow: hidden !important;
     }
 
-    /* Rows within chat_area_col */
     #title_bar_row, #description_content_row {
         flex-grow: 0;
         flex-shrink: 0;
@@ -67,17 +66,29 @@ def launch_ui(initial_model_name: str):
         margin: 0 !important;
     }
     
-    #chatbot_wrapper_col { /* Row containing the chatbot component */
+    #chatbot_wrapper_col { 
         flex-grow: 1; 
         display: flex;
         flex-direction: column;
-        min-height: 0; /* Critical for flex-grow to work and allow shrinking */
+        min-height: 0; 
         overflow: hidden; 
         margin: 0 !important;
     }
-    #chatbot_wrapper_col > div[data-testid="chatbot"] { /* The actual gr.Chatbot UI element */
-        flex-grow: 1; 
-        min-height: 0; 
+
+    #chatbot_wrapper_col > div[data-testid="chatbot"] {
+        /* height: 100% is set by gr.Chatbot(height="100%") in Python */
+        /* This means it should take 100% of #chatbot_wrapper_col's height */
+        min-height: 0; /* As a flex item of #chatbot_wrapper_col, allow it to shrink if necessary */
+        display: flex !important; /* Make it a flex container for its own children (e.g., .wrap) */
+        flex-direction: column !important; /* Stack its children vertically */
+        overflow: hidden !important; /* Prevent this div itself from scrolling or growing with content */
+    }
+
+    #chatbot_wrapper_col > div[data-testid="chatbot"] > div.wrap { /* Target Gradio's inner .wrap div */
+        flex-grow: 1; /* This makes .wrap expand to fill available vertical space in its parent */
+        min-height: 0; /* CRITICAL: Allows .wrap to be smaller than its content, enabling overflow scrolling */
+        overflow-y: auto !important; /* Show vertical scrollbar if content exceeds its flex-determined height */
+        box-sizing: border-box !important; /* Include padding/border in height calculation */
     }
     
     #input_message_row {
@@ -156,7 +167,7 @@ def launch_ui(initial_model_name: str):
                     chatbot_component = gr.Chatbot(
                         type="messages",
                         show_label=False,
-                        # height="100%" # Could be added if needed, but CSS flex should handle
+                        height="100%" 
                     )
                 
                 with gr.Row(equal_height=False, elem_id="input_message_row"): 
@@ -181,7 +192,7 @@ def launch_ui(initial_model_name: str):
 
             assistant_response_content = ""
             stream_had_content = False
-            async for chunk in get_chat_response(message, []):
+            async for chunk in get_chat_response(message, []): 
                 if isinstance(chunk, str):
                     assistant_response_content += chunk
                     current_gradio_history[-1]["content"] = assistant_response_content
