@@ -163,22 +163,24 @@ def launch_ui(initial_model_name: str):
                         elem_id="description-markdown"
                     )
                 
-                with gr.Row(elem_id="chatbot_wrapper_col"): 
-                    chatbot_component = gr.Chatbot(
-                        type="messages",
-                        show_label=False,
-                        height="100%" 
-                    )
+                # with gr.Row(elem_id="chatbot_wrapper_col"): 
+                #     chatbot_component = gr.Chatbot(
+                #         type="messages",
+                #         show_label=False,
+                #         height="100%" 
+                #     )
                 
-                with gr.Row(equal_height=False, elem_id="input_message_row"): 
-                    with gr.Column(scale=8):
-                        textbox_component = gr.Textbox(
-                            placeholder="Ask me anything...",
-                            show_label=False,
-                            container=False,
-                        )
-                    with gr.Column(scale=1, min_width=80):
-                        submit_button = gr.Button("Send")
+                # with gr.Row(equal_height=False, elem_id="input_message_row"): 
+                #     with gr.Column(scale=8):
+                #         textbox_component = gr.Textbox(
+                #             placeholder="Ask me anything...",
+                #             show_label=False,
+                #             container=False,
+                #         )
+                #     with gr.Column(scale=1, min_width=80):
+                #         submit_button = gr.Button("Send")
+                with gr.Row():
+                    gr.ChatInterface(get_chat_response,type="messages")
 
         async def handle_submit_fn(message: str, history_from_chatbot: list[dict[str, str | None]]):
             if not message.strip():
@@ -207,8 +209,8 @@ def launch_ui(initial_model_name: str):
                 current_gradio_history[-1]["content"] = error_msg_display
                 yield current_gradio_history, ""
 
-        textbox_component.submit(fn=handle_submit_fn, inputs=[textbox_component, chatbot_component], outputs=[chatbot_component, textbox_component], show_progress="hidden")
-        submit_button.click(fn=handle_submit_fn, inputs=[textbox_component, chatbot_component], outputs=[chatbot_component, textbox_component], show_progress="hidden")
+        # textbox_component.submit(fn=handle_submit_fn, inputs=[textbox_component, chatbot_component], outputs=[chatbot_component, textbox_component], show_progress="hidden")
+        # submit_button.click(fn=handle_submit_fn, inputs=[textbox_component, chatbot_component], outputs=[chatbot_component, textbox_component], show_progress="hidden")
 
         async def handle_model_change(selected_new_model: str, current_model_in_state: str):
             feedback_msg = ""
