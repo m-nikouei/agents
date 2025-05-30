@@ -1,7 +1,7 @@
 # config.py
 import json
 
-GOOGLE_AI_MODEL_NAME = "gemini-2.5-pro-preview-05-06"
+GOOGLE_AI_MODEL_NAME = "gemini-2.0-flash-lite"
 
 AVAILABLE_MODELS = [
     "gemini-2.5-pro-preview-05-06", # Default

@@ -8,7 +8,7 @@ from llm_backend import (
     get_initialization_status,
     change_model_and_reinitialize
 )
-from config import DEV_PORT, STABLE_PORT, read_configs, AVAILABLE_MODELS, GOOGLE_AI_MODEL_NAME as DEFAULT_CONFIG_MODEL
+from config import DEV_PORT, read_configs, AVAILABLE_MODELS, GOOGLE_AI_MODEL_NAME as DEFAULT_CONFIG_MODEL
 
 def generate_description_markdown_text(model_name_for_display: str, initialized: bool, status_message: str) -> str:
     desc = f"A simple chatbot powered by Langchain and Google AI ({model_name_for_display})."
@@ -18,252 +18,126 @@ def generate_description_markdown_text(model_name_for_display: str, initialized:
             desc += "\nPlease ensure your GOOGLE_API_KEY is correctly set in your config file or as an environment variable."
     return desc
 
-def launch_ui(initial_model_name: str):
+async def chat_interface_fn(message: str, history: list[list[str | None]]):
+    if not message.strip():
+        yield ""
+        return
+
+    is_initialized, status_msg, _ = get_initialization_status()
+    if not is_initialized:
+        yield f"**Chatbot not available:** {status_msg}"
+        return
+
+    assistant_response_content = ""
+    stream_had_content = False
     
+    processed_history = []
+    for user_msg, bot_msg in history:
+        if user_msg:
+            processed_history.append({"role": "user", "content": user_msg})
+        if bot_msg:
+            processed_history.append({"role": "assistant", "content": bot_msg})
+
+    async for chunk in get_chat_response(message, processed_history): 
+        if isinstance(chunk, str):
+            assistant_response_content += chunk
+            stream_had_content = True
+            yield assistant_response_content
+    
+    if not stream_had_content and not assistant_response_content:
+        _init_ok_final, _status_msg_final, _ = get_initialization_status()
+        error_msg_display = "Error: Received an empty or unexpected response from the AI backend."
+        if not _init_ok_final: 
+            error_msg_display = f"**Chatbot not available:** {_status_msg_final}"
+        yield error_msg_display
+
+def launch_ui_chat_interface(initial_model_name: str):
     initial_is_initialized, initial_status_msg, actual_initial_model_in_use = get_initialization_status()
     current_display_model_name = actual_initial_model_in_use or initial_model_name
-    
-    custom_css = """
-    html, body {
-        height: 100%; 
-        margin: 0;
-        overflow: hidden; 
-    }
-    .gradio-container {
-        padding-left: 10% !important;
-        padding-right: 10% !important;
-        padding-top: 0.2em !important; 
-        padding-bottom: 0.2em !important;
-        box-sizing: border-box !important;
-        height: 100% !important; 
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    #main_layout_row {
-        flex-grow: 1; 
-        display: flex;
-        min-height: 0; 
-    }
-    #settings_panel_col {
-        min-height: 0;
-        overflow-y: auto;
-        flex-shrink: 0;
-    }
-    #chat_area_col {
-        display: flex !important;
-        flex-direction: column !important;
-        flex-grow: 1; 
-        height: 100%; 
-        min-height: 0;
-        overflow: hidden !important;
-    }
 
-    #title_bar_row, #description_content_row {
-        flex-grow: 0;
-        flex-shrink: 0;
-        padding-top: 0.1em !important;
-        padding-bottom: 0.1em !important;
-        margin: 0 !important;
-    }
-    
-    #chatbot_wrapper_col { 
-        flex-grow: 1; 
-        display: flex;
-        flex-direction: column;
-        min-height: 0; 
-        overflow: hidden; 
-        margin: 0 !important;
-    }
-
-    #chatbot_wrapper_col > div[data-testid="chatbot"] {
-        /* height: 100% is set by gr.Chatbot(height="100%") in Python */
-        /* This means it should take 100% of #chatbot_wrapper_col's height */
-        min-height: 0; /* As a flex item of #chatbot_wrapper_col, allow it to shrink if necessary */
-        display: flex !important; /* Make it a flex container for its own children (e.g., .wrap) */
-        flex-direction: column !important; /* Stack its children vertically */
-        overflow: hidden !important; /* Prevent this div itself from scrolling or growing with content */
-    }
-
-    #chatbot_wrapper_col > div[data-testid="chatbot"] > div.wrap { /* Target Gradio's inner .wrap div */
-        flex-grow: 1; /* This makes .wrap expand to fill available vertical space in its parent */
-        min-height: 0; /* CRITICAL: Allows .wrap to be smaller than its content, enabling overflow scrolling */
-        overflow-y: auto !important; /* Show vertical scrollbar if content exceeds its flex-determined height */
-        box-sizing: border-box !important; /* Include padding/border in height calculation */
-    }
-    
-    #input_message_row {
-        flex-grow: 0;
-        flex-shrink: 0;
-        padding-top: 0.5em !important;
-        padding-bottom: 0.2em !important;
-        margin: 0 !important;
-    }
-    #input_message_row > div[data-testid="column"] {
-        padding: 0 !important;
-    }
-
-    footer {visibility: hidden; display: none !important;}
-    
-    .prose p { 
-        margin-top: 0.1em !important;
-        margin-bottom: 0.1em !important;
-    }
-    #main-title p { 
-        margin-top: 0.1em !important; 
-        margin-bottom: 0.1em !important;
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-        line-height: 1.2;
-    }
-    #description-markdown p {
-        margin-top: 0.05em !important;
-        margin-bottom: 0.05em !important;
-        font-size: 0.85em; 
-        line-height: 1.2;
-    }
-    #settings_panel_col .prose h3 { 
-        margin-top: 0.3em !important;
-        margin-bottom: 0.1em !important;
-    }
-    """
-
-    with gr.Blocks(theme="soft", fill_height=True, css=custom_css) as demo:
+    with gr.Blocks(theme="soft", fill_height=True) as demo:
         current_model_gr_state = gr.State(current_display_model_name)
-        settings_panel_visible_state = gr.State(False)
+        settings_visible_state = gr.State(False)
+        
+        with gr.Column(scale=1):
+            with gr.Row():
+                with gr.Column(scale=0, min_width=50):
+                    hamburger_button = gr.Button("☰", variant="secondary", size="sm")
+                with gr.Column(scale=9):
+                    title_md = gr.Markdown(f"# Google AI Chatbot ({current_display_model_name})")
+            
+            description_md = gr.Markdown(
+                generate_description_markdown_text(current_display_model_name, initial_is_initialized, initial_status_msg)
+            )
 
-        with gr.Row(equal_height=True, elem_id="main_layout_row"): 
-            with gr.Column(scale=1, min_width=280, visible=False, elem_id="settings_panel_col") as settings_panel:
-                gr.Markdown("## Settings")
-                gr.Markdown("### Model Selection")
-                settings_panel_status_md = gr.Markdown("")
+            settings_accordion = gr.Accordion("Settings", open=False, visible=False)
+            with settings_accordion:
+                settings_status_md = gr.Markdown("")
                 model_selector_radio = gr.Radio(
                     choices=AVAILABLE_MODELS,
                     value=current_display_model_name,
-                    label="Language Model"
+                    label="Select Language Model"
                 )
-                gr.Markdown("### Theme")
-                gr.Markdown("_(Theme selection may require app reload if changed via URL parameters or Gradio's native settings if footer is enabled)_")
-                gr.Markdown("---")
-                gr.Markdown("### Links")
-                gr.Markdown("<div style='margin-bottom: 5px;'><a href='#' target='_blank' style='text-decoration: none; color: #007bff;'>Use via API</a></div>")
-                gr.Markdown("<div style='margin-bottom: 5px;'><a href='https://gradio.app' target='_blank' style='text-decoration: none; color: #007bff;'>Built with Gradio</a></div>")
-                gr.Markdown("---")
-                close_settings_button = gr.Button("Close Settings")
-
-            with gr.Column(scale=4, elem_id="chat_area_col"): 
-                with gr.Row(equal_height=False, elem_id="title_bar_row"): 
-                    with gr.Column(scale=0, min_width=50): 
-                        hamburger_button = gr.Button("☰", variant="secondary", size="sm")
-                    with gr.Column(scale=9): 
-                        title_markdown = gr.Markdown(f"# Google AI Chatbot ({current_display_model_name})", elem_id="main-title")
-                
-                with gr.Row(elem_id="description_content_row"):
-                    description_markdown = gr.Markdown(
-                        generate_description_markdown_text(current_display_model_name, initial_is_initialized, initial_status_msg),
-                        elem_id="description-markdown"
-                    )
-                
-                # with gr.Row(elem_id="chatbot_wrapper_col"): 
-                #     chatbot_component = gr.Chatbot(
-                #         type="messages",
-                #         show_label=False,
-                #         height="100%" 
-                #     )
-                
-                # with gr.Row(equal_height=False, elem_id="input_message_row"): 
-                #     with gr.Column(scale=8):
-                #         textbox_component = gr.Textbox(
-                #             placeholder="Ask me anything...",
-                #             show_label=False,
-                #             container=False,
-                #         )
-                #     with gr.Column(scale=1, min_width=80):
-                #         submit_button = gr.Button("Send")
-                with gr.Row():
-                    gr.ChatInterface(get_chat_response,type="messages")
-
-        async def handle_submit_fn(message: str, history_from_chatbot: list[dict[str, str | None]]):
-            if not message.strip():
-                yield history_from_chatbot, "" 
-                return
-
-            current_gradio_history = list(history_from_chatbot) if history_from_chatbot else []
-            current_gradio_history.append({"role": "user", "content": message})
-            current_gradio_history.append({"role": "assistant", "content": ""}) 
-            yield current_gradio_history, ""
-
-            assistant_response_content = ""
-            stream_had_content = False
-            async for chunk in get_chat_response(message, []): 
-                if isinstance(chunk, str):
-                    assistant_response_content += chunk
-                    current_gradio_history[-1]["content"] = assistant_response_content
-                    stream_had_content = True
-                    yield current_gradio_history, ""
             
-            if not stream_had_content and current_gradio_history[-1]["content"] == "":
-                _init_ok, _status_msg, _ = get_initialization_status()
-                error_msg_display = "Error: Received an empty or unexpected response from the AI backend."
-                if not _init_ok: error_msg_display = f"Chatbot not available: {_status_msg}"
-                elif not assistant_response_content: error_msg_display = "Error: AI backend did not provide a response."
-                current_gradio_history[-1]["content"] = error_msg_display
-                yield current_gradio_history, ""
+            chat_interface_component = gr.ChatInterface(
+                fn=chat_interface_fn,
+                fill_height=True,
+                chatbot=gr.Chatbot(show_label=False,container=False,height="120%"),
+            )
 
-        # textbox_component.submit(fn=handle_submit_fn, inputs=[textbox_component, chatbot_component], outputs=[chatbot_component, textbox_component], show_progress="hidden")
-        # submit_button.click(fn=handle_submit_fn, inputs=[textbox_component, chatbot_component], outputs=[chatbot_component, textbox_component], show_progress="hidden")
+        def toggle_settings_accordion(current_visibility):
+            new_visibility = not current_visibility
+            radio_update_val = gr.update()
+            status_text_update = ""
+            if new_visibility:
+                _, _, current_backend_model = get_initialization_status()
+                radio_update_val = gr.update(value=current_backend_model)
+                status_text_update = "Select model or adjust settings."
+            
+            return new_visibility, gr.update(visible=new_visibility, open=new_visibility), radio_update_val, status_text_update
 
-        async def handle_model_change(selected_new_model: str, current_model_in_state: str):
-            feedback_msg = ""
-            updated_radio_val = selected_new_model
+        hamburger_button.click(
+            fn=toggle_settings_accordion,
+            inputs=[settings_visible_state],
+            outputs=[settings_visible_state, settings_accordion, model_selector_radio, settings_status_md]
+        )
 
+        async def handle_model_change_interface(selected_new_model: str, current_model_in_state: str):
+            feedback_msg_for_settings = ""
+            
             if selected_new_model == current_model_in_state:
                 is_init, status_msg, model_name_b = get_initialization_status()
-                new_title = f"# Google AI Chatbot ({model_name_b})"
-                new_desc = generate_description_markdown_text(model_name_b, is_init, status_msg)
-                feedback_msg = "Settings refreshed. Model remains the same."
-                updated_radio_val = model_name_b
-                return model_name_b, new_title, new_desc, feedback_msg, gr.update(value=updated_radio_val)
+                new_title_str = f"# Google AI Chatbot ({model_name_b})"
+                new_desc_str = generate_description_markdown_text(model_name_b, is_init, status_msg)
+                feedback_msg_for_settings = "Settings refreshed. Model remains the same."
+                return model_name_b, new_title_str, new_desc_str, feedback_msg_for_settings, gr.update(value=model_name_b)
 
             success, msg, actual_model_name = change_model_and_reinitialize(selected_new_model)
+            
             new_title_str = f"# Google AI Chatbot ({actual_model_name})"
             is_overall_init, overall_status_msg, _ = get_initialization_status()
             new_desc_str = generate_description_markdown_text(actual_model_name, is_overall_init, overall_status_msg)
-            updated_radio_val = actual_model_name
             
-            if success: feedback_msg = f"Successfully switched to: {actual_model_name}."
-            else: feedback_msg = f"Failed to switch to {selected_new_model}. {msg}"
+            if success:
+                feedback_msg_for_settings = f"Successfully switched to: {actual_model_name}. You may need to clear chat history."
+            else:
+                feedback_msg_for_settings = f"Failed to switch to {selected_new_model}. Error: {msg}. Current model: {actual_model_name}."
             
-            return actual_model_name, new_title_str, new_desc_str, feedback_msg, gr.update(value=updated_radio_val)
+            return actual_model_name, new_title_str, new_desc_str, feedback_msg_for_settings, gr.update(value=actual_model_name)
 
         model_selector_radio.change(
-            fn=handle_model_change,
+            fn=handle_model_change_interface,
             inputs=[model_selector_radio, current_model_gr_state],
-            outputs=[current_model_gr_state, title_markdown, description_markdown, settings_panel_status_md, model_selector_radio]
-        )
-        
-        def toggle_settings_panel(current_visibility_state_value: bool):
-            new_visibility = not current_visibility_state_value
-            radio_update_val = gr.update() 
-            status_text_update = ""
-            if new_visibility: 
-                _, _, current_backend_model = get_initialization_status()
-                radio_update_val = gr.update(value=current_backend_model)
-                status_text_update = "Select model or close settings."
-            return new_visibility, gr.update(visible=new_visibility), radio_update_val, status_text_update
-
-        hamburger_button.click(
-            fn=toggle_settings_panel,
-            inputs=[settings_panel_visible_state], 
-            outputs=[settings_panel_visible_state, settings_panel, model_selector_radio, settings_panel_status_md]
-        )
-        
-        close_settings_button.click(
-            lambda: (False, gr.update(visible=False), gr.update(), ""), 
-            inputs=None, 
-            outputs=[settings_panel_visible_state, settings_panel, model_selector_radio, settings_panel_status_md]
+            outputs=[
+                current_model_gr_state, 
+                title_md, 
+                description_md, 
+                settings_status_md, 
+                model_selector_radio
+            ]
         )
 
-    print("Launching Gradio Chat Interface with Blocks...")
+    print("Launching Gradio Chat Interface...")
     demo.launch(server_name="0.0.0.0", server_port=DEV_PORT)
 
 if __name__ == "__main__":
@@ -304,4 +178,4 @@ if __name__ == "__main__":
         set_api_key_and_initialize(None, initial_model_to_attempt) 
 
     _, _, model_name_for_ui_launch = get_initialization_status()
-    launch_ui(initial_model_name=model_name_for_ui_launch)
+    launch_ui_chat_interface(initial_model_name=model_name_for_ui_launch or DEFAULT_CONFIG_MODEL)
