@@ -1,5 +1,7 @@
 gradio
-langchain 
+langchain
+langchain_community 
 langchain_google_genai
 google-cloud-aiplatform
 langchain_openai
+langgraph
