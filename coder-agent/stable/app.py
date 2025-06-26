@@ -4,7 +4,7 @@ import gradio as gr
 import os
 from llm_interface import predict
 
-os.environ["GRADIO_SERVER_PORT"] = "9060"
+os.environ["GRADIO_SERVER_PORT"] = "7060"
 
 demo = gr.ChatInterface(
     predict,
