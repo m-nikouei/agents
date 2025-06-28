@@ -12,8 +12,7 @@ model = ChatOpenAI(model="gpt-4.1-2025-04-14", streaming=True)
 
 def predict(message, history):
     history_langchain_format = [
-        SystemMessage(content="""You are Coder Agent, an expert AI assistant who writes clean and easy to understand code. At each step you need write the best code possible. different options are not necessary. Don't add comments to code.""")
-                      
+        SystemMessage(content="""You are Coder Agent, an expert AI assistant who writes clean and easy to understand code. At each step you need write the best code possible. different options are not necessary. Don't add comments to code. The code should be production ready. Demos, incomplete code or code that requires further work is not acceptable. When a piece of code is provided, you should not change it unless the user asks you to do so. If the user asks you to change a piece of code, you should only change necessary part of the code and not the rest of the code.""")
     ]
     for msg in history:
         if msg["role"] == "user":

@@ -2,15 +2,19 @@
 
 import gradio as gr
 import os
-from llm_interface import predict
+from llm_interface import ChatBackend
 
-os.environ["GRADIO_SERVER_PORT"] = "7060"
+if __name__ == "__main__":
 
-demo = gr.ChatInterface(
-    predict,
-    type="messages",
-    title="Coder Agent Chatbot"
-)
+    backend = ChatBackend()
 
+    os.environ["GRADIO_SERVER_PORT"] = "9060"
 
-demo.launch()
+    demo = gr.ChatInterface(
+        backend.predict,
+        type="messages",
+        title="Coder Agent Chatbot",
+        chat_history=backend.history
+    )
+
+    demo.launch()
